@@ -1,4 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { z } from 'zod'
 import {
   createRemoteServer,
   parseHelloTimeout,
@@ -9,6 +11,33 @@ import {
 } from './server.js'
 import { parseLogLevel } from './logger.js'
 import { parseIceConfig } from './ice.js'
+import type { AccountCredential } from './store.js'
+
+const accountEntrySchema = z.object({ account: z.string().min(1), password: z.string().min(1) }).strict()
+
+/**
+ * Account sources, first match wins:
+ *  1. DSH_SERVER_ACCOUNTS_FILE — JSON array of {account, password} (volume-friendly)
+ *  2. DSH_SERVER_ACCOUNTS      — the same JSON array inline in the environment
+ *  3. DSH_SERVER_ACCOUNT + DSH_SERVER_PASSWORD — legacy single account
+ */
+function parseAccountsFromEnv(): AccountCredential[] {
+  const file = process.env.DSH_SERVER_ACCOUNTS_FILE?.trim()
+  if (file) {
+    const path = resolve(file)
+    if (!existsSync(path)) throw new Error(`DSH_SERVER_ACCOUNTS_FILE points to a missing file: ${file}`)
+    const parsed = z.array(accountEntrySchema).parse(JSON.parse(readFileSync(path, 'utf8')))
+    if (parsed.length === 0) throw new Error('DSH_SERVER_ACCOUNTS_FILE must list at least one account.')
+    return parsed
+  }
+  const inline = process.env.DSH_SERVER_ACCOUNTS?.trim()
+  if (inline) {
+    const parsed = z.array(accountEntrySchema).parse(JSON.parse(inline))
+    if (parsed.length === 0) throw new Error('DSH_SERVER_ACCOUNTS must list at least one account.')
+    return parsed
+  }
+  return [{ account: process.env.DSH_SERVER_ACCOUNT ?? '', password: process.env.DSH_SERVER_PASSWORD ?? '' }]
+}
 
 const port = Number(process.env.DSH_SERVER_PORT ?? '8080')
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid DSH_SERVER_PORT.')
@@ -21,8 +50,7 @@ const maxFramesPerSec = parseMaxFramesPerSec(process.env.DSH_SERVER_MAX_FRAMES_P
 const logLevel = parseLogLevel(process.env.DSH_SERVER_LOG_LEVEL)
 
 const app = createRemoteServer({
-  account: process.env.DSH_SERVER_ACCOUNT ?? '',
-  password: process.env.DSH_SERVER_PASSWORD ?? '',
+  accounts: parseAccountsFromEnv(),
   publicUrl: process.env.DSH_SERVER_PUBLIC_URL ?? `http://localhost:${port}`,
   dataFile: resolve(process.env.DSH_SERVER_DATA_FILE ?? 'data/state.json'),
   trustedProxyIps: (process.env.DSH_SERVER_TRUSTED_PROXY_IPS ?? '').split(',').map(value => value.trim()).filter(Boolean),

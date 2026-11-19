@@ -12,6 +12,29 @@
 
 设备列表可改动设备名称，也可撤销不再使用的设备（`DELETE /api/v1/account/devices/:id`，需 Web 登录会话）。撤销后该设备立即从列表消失、原有 access/refresh 凭据全部失效，设备记录保留为已撤销状态（同一 `deviceId` 不能再用原密钥或新密钥重新登记）；设备侧收到 `DEVICE_REVOKED` 后会清除本地凭据，重新登录即轮换新身份重新登记。
 
+## 多账号
+
+Server 支持配置多个账号：设备、凭据与在线发现按账号完全隔离，不同账号的设备互相不可见、不可连接（`connect.request` 跨账号返回 `MEMBERSHIP_REQUIRED`）。Host 和客户端仍填写同一个 Server 地址，各自使用自己的账号登录。
+
+三种配置方式，按优先级取第一个生效：
+
+| 优先级 | 变量 | 说明 |
+| --- | --- | --- |
+| 1 | `DSH_SERVER_ACCOUNTS_FILE` | 指向 JSON 文件，如 `/data/accounts.json`（推荐：compose 挂载文件即可增删账号，避免转义问题） |
+| 2 | `DSH_SERVER_ACCOUNTS` | 同样格式的 JSON 数组直接放环境变量 |
+| 3 | `DSH_SERVER_ACCOUNT` + `DSH_SERVER_PASSWORD` | 单账号，兼容旧部署 |
+
+JSON 格式（账号建议邮箱格式，密码至少 12 字符）：
+
+```json
+[
+  { "account": "alice@example.com", "password": "at-least-12-chars" },
+  { "account": "bob@example.com", "password": "another-password" }
+]
+```
+
+修改配置后重启容器生效：新增账号立即可用；某账号密码变更仅使该账号的设备需重新授权（其他账号不受影响）；从配置中移除的账号，其设备与凭据一并清除。旧版单账号 `state.json`（v1）首次启动时自动迁移，设备凭据保留。
+
 ## 刷新响应丢失恢复
 
 刷新成功但响应丢失时，重试旧 refresh token 会返回同一组后继凭据，Server 重启后也可恢复。恢复持续到后继再次轮换、撤销或过期，不延长任何 token 的生命周期。若恢复的 access token 已过期，可用恢复的 refresh token 再次轮换。更早的旧 token 会被拒绝，但不撤销当前有效凭据。

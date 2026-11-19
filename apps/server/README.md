@@ -12,6 +12,29 @@ The `/` landing page links to `/app/login`; a successful sign-in continues to `/
 
 The device list lets you rename a device and revoke ones you no longer use (`DELETE /api/v1/account/devices/:id`, requires a Web session). A revoked device disappears from the list immediately and all of its access/refresh credentials stop working; the record is kept as a revoked tombstone, so the same `deviceId` cannot register again with either the original or a new key. The device itself clears its local credentials on `DEVICE_REVOKED` and registers a rotated identity the next time you sign in.
 
+## Multiple accounts
+
+The Server supports multiple accounts: devices, credentials and discovery are fully isolated per account — devices of different accounts never see or reach each other (a cross-account `connect.request` returns `MEMBERSHIP_REQUIRED`). Hosts and clients keep pointing at the same Server URL and simply sign in with their own account.
+
+Three configuration sources, first match wins:
+
+| Priority | Variable | Notes |
+| --- | --- | --- |
+| 1 | `DSH_SERVER_ACCOUNTS_FILE` | Path to a JSON file, e.g. `/data/accounts.json` (recommended: mount a volume, edit the file to add/remove accounts) |
+| 2 | `DSH_SERVER_ACCOUNTS` | The same JSON array inline in the environment |
+| 3 | `DSH_SERVER_ACCOUNT` + `DSH_SERVER_PASSWORD` | Legacy single account |
+
+JSON format (account names should be email-shaped, passwords at least 12 characters):
+
+```json
+[
+  { "account": "alice@example.com", "password": "at-least-12-chars" },
+  { "account": "bob@example.com", "password": "another-password" }
+]
+```
+
+Restart the container after changing the configuration: new accounts work immediately; changing one account's password only forces that account's devices to re-authorize; an account removed from the configuration has its devices and credentials dropped entirely. A legacy single-account `state.json` (v1) is migrated automatically on first start, keeping its device credentials.
+
 ## Refresh response recovery
 
 If a refresh succeeds but its response is lost, retrying the previous refresh token returns the same successor pair, including after a Server restart. Recovery remains available until that successor is rotated again, revoked, or expired; it does not extend either token's lifetime. An expired recovered access token can be replaced by rotating the recovered refresh token. Older tokens are rejected without revoking current credentials.

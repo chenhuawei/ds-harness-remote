@@ -569,7 +569,11 @@ export class Gateway {
       }
       const host = this.peers.get(request.hostDeviceId)
       if (!host || host.role !== 'host') { this.send(peer, createControlFrame('error', { code: 'HOST_OFFLINE', message: 'Host is offline.', retryable: true })); return }
-      this.store.get(host.id)
+      const hostDevice = this.store.get(host.id)
+      // Membership is same-account: devices of different accounts must never
+      // learn about each other or establish a logical connection.
+      const clientDevice = this.store.get(peer.id)
+      if (hostDevice.accountId !== clientDevice.accountId) throw new ApiError('MEMBERSHIP_REQUIRED')
       if (!request.preferredTransports.includes('relay') || !peer.capabilities.includes('transport.relay') || !host.capabilities.includes('transport.relay')) throw new ApiError('CAPABILITY_NOT_SUPPORTED')
       // The link coordinates only transports both peers actually advertised;
       // the Host receives the same intersection so it never sees a transport
