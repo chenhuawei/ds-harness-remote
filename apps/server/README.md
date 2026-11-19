@@ -52,7 +52,7 @@ ghcr.io/liguobao/ds-harness-remote/server:latest
 ```bash
 cd apps/server
 cp .env.example .env
-# Edit .env: set your account, password, and public URL
+# Create accounts.json first (see "Multiple accounts"), then edit .env to set the public URL
 docker compose pull server
 docker compose up -d --no-build server
 ```
@@ -97,7 +97,7 @@ pnpm --filter @dsh-remote/server build
 cp apps/server/.env.example apps/server/.env
 ```
 
-Edit `apps/server/.env` with your account and a password of at least 12 characters, then start:
+Edit `apps/server/.env` (point `DSH_SERVER_ACCOUNTS_FILE` at your accounts JSON file), then start:
 
 ```bash
 cd apps/server
@@ -108,8 +108,7 @@ Open <http://localhost:8080>. Set the same Server URL on your Host and Client, t
 
 | Variable | Purpose / default |
 | --- | --- |
-| `DSH_SERVER_ACCOUNT` | Required login account |
-| `DSH_SERVER_PASSWORD` | Required; at least 12 characters |
+| `DSH_SERVER_ACCOUNTS_FILE` | Required; path to the accounts JSON file (see "Multiple accounts") |
 | `DSH_SERVER_PUBLIC_URL` | Browser-facing URL; default `http://localhost:8080` |
 | `DSH_SERVER_HOST` | Listen / port-binding address; default `127.0.0.1`, use `0.0.0.0` for LAN access |
 | `DSH_SERVER_PORT` | Default `8080` |

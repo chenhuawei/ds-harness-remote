@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { z } from 'zod'
 import {
@@ -26,6 +26,9 @@ function parseAccountsFromEnv(): AccountCredential[] {
   if (file) {
     const path = resolve(file)
     if (!existsSync(path)) throw new Error(`DSH_SERVER_ACCOUNTS_FILE points to a missing file: ${file}`)
+    // A bind mount whose source file did not exist shows up as a directory;
+    // fail with a clear message instead of an obscure EISDIR read error.
+    if (!statSync(path).isFile()) throw new Error(`DSH_SERVER_ACCOUNTS_FILE must point to a JSON file, not a directory: ${file} (if Docker created a directory at the mount point, delete it and create the file on the host first)`)
     const parsed = z.array(accountEntrySchema).parse(JSON.parse(readFileSync(path, 'utf8')))
     if (parsed.length === 0) throw new Error('DSH_SERVER_ACCOUNTS_FILE must list at least one account.')
     return parsed

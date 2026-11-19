@@ -52,7 +52,7 @@ ghcr.io/liguobao/ds-harness-remote/server:latest
 ```bash
 cd apps/server
 cp .env.example .env
-# 编辑 .env，设置账号、密码和访问地址
+# 先创建 accounts.json（格式见上方「多账号」），再编辑 .env 设置访问地址
 docker compose pull server
 docker compose up -d --no-build server
 ```
@@ -97,7 +97,7 @@ pnpm --filter @dsh-remote/server build
 cp apps/server/.env.example apps/server/.env
 ```
 
-编辑 `apps/server/.env`，设置账号和至少 12 字符的密码，然后启动：
+编辑 `apps/server/.env`（把 `DSH_SERVER_ACCOUNTS_FILE` 指向你的账号 JSON 文件），然后启动：
 
 ```bash
 cd apps/server
@@ -108,8 +108,7 @@ node --env-file=.env dist/main.js
 
 | 环境变量 | 用途 / 默认值 |
 | --- | --- |
-| `DSH_SERVER_ACCOUNT` | 必填，登录账号 |
-| `DSH_SERVER_PASSWORD` | 必填，至少 12 字符 |
+| `DSH_SERVER_ACCOUNTS_FILE` | 必填，账号 JSON 文件路径（格式见「多账号」） |
 | `DSH_SERVER_PUBLIC_URL` | 浏览器访问地址，默认 `http://localhost:8080` |
 | `DSH_SERVER_HOST` | 监听/端口映射地址，默认 `127.0.0.1`；局域网设为 `0.0.0.0` |
 | `DSH_SERVER_PORT` | 默认 `8080` |
